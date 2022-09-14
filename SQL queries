@@ -1,0 +1,116 @@
+SELECT * FROM `trans-scheme-332110.test.coviddeaths` 
+where continent is not null
+order by 3,4
+
+--select data
+SELECT location, date, total_cases,
+new_cases, total_deaths, population
+FROM `trans-scheme-332110.test.coviddeaths` 
+where continent is not null
+order by 1,2
+
+--Calculating death rates
+SELECT location, date, total_cases, total_deaths,
+(total_deaths/total_cases)*100 as DeathPercentage
+FROM `trans-scheme-332110.test.coviddeaths` 
+where continent is not null
+--where location = 'Canada'
+order by 1,2
+
+--Percentage of population contracted covid
+SELECT location, date, population, total_cases, total_deaths,
+(total_cases/population)*100 as covidtoPopPercent
+FROM `trans-scheme-332110.test.coviddeaths` 
+where continent is not null
+--where location = 'Canada'
+order by 1,2
+
+--countries with highest infection rate compared to population
+SELECT location, population, max(total_cases) hightestInfection, 
+max((total_cases/population)*100) PercentPopulationInfected
+FROM `trans-scheme-332110.test.coviddeaths` 
+where continent is not null
+--where location = 'Canada'
+group by location, population
+order by 1 
+
+--OR
+
+with tablea as 
+(SELECT location, date, population, total_cases, total_deaths,
+(total_cases/population)*100 as PercentPopulationInfected
+FROM `trans-scheme-332110.test.coviddeaths` 
+where continent is not null),
+tableb as (select location,  population, 
+max(PercentPopulationInfected) PercentPopulationInfected, max(total_cases) total_cases
+from tablea
+group by location,population)
+select * from tableb
+order by 3 desc 
+
+--Countries with highest death counts by population
+select location, max(total_deaths) as highestdeathcount
+FROM `trans-scheme-332110.test.coviddeaths` 
+where continent is not null
+group by location
+order by 2 desc
+
+-- Continents with hightest deathcounts
+select continent, max(total_deaths) as highestdeathcount
+FROM `trans-scheme-332110.test.coviddeaths` 
+where continent is not  null
+group by continent
+order by 2 desc
+
+--Global numbers by days
+SELECT date,
+sum(new_cases) new_cases,sum(new_deaths) total_deaths, 
+(sum(new_deaths)/sum(new_cases))*100 as deathpercentage
+FROM `trans-scheme-332110.test.coviddeaths` 
+where continent is not null
+group by date
+order by 1,2
+
+SELECT 
+sum(new_cases) new_cases,sum(new_deaths) total_deaths, 
+(sum(new_deaths)/sum(new_cases))*100 as deathpercentage
+FROM `trans-scheme-332110.test.coviddeaths` 
+where continent is not null
+order by 1,2
+
+
+select cd.continent, cd.location, cd.date, cd.population, cv.new_vaccinations, 
+sum(cv.new_vaccinations) over(partition by cd.location order by cd.location,cd.date) as rolling_vaccinated
+from `trans-scheme-332110.test.coviddeaths`  cd
+join `trans-scheme-332110.test.covidvaccinations` cv
+on cd.location = cv.location
+and cd.date = cv.date
+where cd.continent is not null
+order by 2,3
+
+
+---Vaccination rate
+with tablea 
+as 
+(select cd.continent, cd.location, cd.date, cd.population, cv.new_vaccinations, 
+sum(cv.new_vaccinations) over(partition by cd.location order by cd.location,cd.date) as rolling_vaccinated
+from `trans-scheme-332110.test.coviddeaths`  cd
+join `trans-scheme-332110.test.covidvaccinations` cv
+on cd.location = cv.location
+and cd.date = cv.date
+where cd.continent is not null
+order by 2,3)
+select *, (rolling_vaccinated/population)*100 from tablea
+
+
+-- Creating a View
+create view test.percentpopulationvaccinated as 
+select cd.continent, cd.location, cd.date, cd.population, cv.new_vaccinations, 
+sum(cv.new_vaccinations) over(partition by cd.location order by cd.location,cd.date) as rolling_vaccinated
+from `trans-scheme-332110.test.coviddeaths`  cd
+join `trans-scheme-332110.test.covidvaccinations` cv
+on cd.location = cv.location
+and cd.date = cv.date
+where cd.continent is not null
+
+select * from test.percentpopulationvaccinated 
